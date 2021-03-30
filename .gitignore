@@ -1,0 +1,5 @@
+.cache/
+.ccls-cache/
+*.o
+*.su
+*.d

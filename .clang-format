@@ -1,0 +1,13 @@
+BasedOnStyle: GNU
+IndentWidth: 4
+AlignAfterOpenBracket: Align
+AlignEscapedNewlines: Left
+AllowShortBlocksOnASingleLine: Always
+AllowShortEnumsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: Never
+SortIncludes: false
+BreakBeforeBraces: Attach
+AlwaysBreakAfterReturnType: None
+PenaltyReturnTypeOnItsOwnLine: 1000000
+AlwaysBreakAfterDefinitionReturnType: None
+NamespaceIndentation: All

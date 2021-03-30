@@ -1,0 +1,16 @@
+%compile_commands.json
+%h -x
+%h c++-header
+%cpp -std=c++17
+-I/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.9-2020-q2-update.linux64_1.5.0.202011040924/tools/arm-none-eabi/include/c++/9.3.1
+-I/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.9-2020-q2-update.linux64_1.5.0.202011040924/tools/arm-none-eabi/include
+-I/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.9-2020-q2-update.linux64_1.5.0.202011040924/tools/arm-none-eabi/include/c++/9.3.1/arm-none-eabi/thumb/v7e-m+fp/hard/
+-I../Core/Inc
+-I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
+-I../Drivers/STM32F4xx_HAL_Driver/Inc
+-I../Drivers/CMSIS/Device/ST/STM32F4xx/Include
+-I../Drivers/CMSIS/Include
+-DUSE_HAL_DRIVER
+-DSTM32f411xE
+-D__weak=__attribute__((weak))
+-D__packed=__attribute__((__packed__))
