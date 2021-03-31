@@ -34,8 +34,7 @@ namespace ILI9341 {
 // Registers
 //
 #if (ILI9341_ROTATION == 0) || (ILI9341_ROTATION == 2)
-            constexpr uint16_t TFTWIDTH
-        = 240;                          ///< ILI9341 max TFT width
+    constexpr uint16_t TFTWIDTH = 240;                          ///< ILI9341 max TFT width
     constexpr uint16_t TFTHEIGHT = 320; ///< ILI9341 max TFT height
 #elif (ILI9341_ROTATION == 1) || (ILI9341_ROTATION == 3)
         constexpr uint16_t TFTWIDTH
