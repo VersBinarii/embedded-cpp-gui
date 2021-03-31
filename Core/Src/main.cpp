@@ -23,6 +23,7 @@
 #include "main.h"
 #include "i2c.h"
 #include "spi.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -103,9 +104,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI1_Init();
-  MX_SPI5_Init();
-  MX_I2C1_Init();
+  MX_SPI1_Init ();
+  MX_SPI5_Init ();
+  MX_I2C1_Init ();
+  MX_TIM3_Init ();
+
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -118,11 +121,13 @@ int main(void)
   GFX_Color::set_font (gfx, font_8x5);
   // BME::BME280_init (bme280, &hi2c1, BME280_ADDRESS);
 
-  XPT2046::init (tp, hspi1, EXTI15_10_IRQn);
+  XPT2046::init (tp, hspi1, EXTI2_IRQn);
 
   XPT2046::calibrate (tp, gfx);
 
   ILI9341::clear_display (lcd, ILI9341::Color::PURPLE);
+
+  XPT2046::Point p;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -141,7 +146,7 @@ int main(void)
       //  ILI9341_ClearDisplay (ILI9341_PURPLE);
       XPT2046::run (tp);
       if (XPT2046::is_touched (tp)) {
-          XPT2046::Point p = XPT2046::get_touch_point (tp);
+          p = XPT2046::get_touch_point (tp);
           ILI9341::write_pixel (lcd, p.x, p.y, ILI9341::Color::WHITE);
       }
   }
@@ -193,9 +198,15 @@ void SystemClock_Config(void)
 
 static void MX_NVIC_Init(void)
 {
-  /* EXTI15_10_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+  /* TIM3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(TIM3_IRQn);
+  /* EXTI2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+  /* EXTI1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 }
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
