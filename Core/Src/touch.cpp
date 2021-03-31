@@ -9,7 +9,6 @@
 namespace XPT2046 {
     constexpr static uint8_t CHANNEL_SETTINGS_X = 0b10010000;
     constexpr static uint8_t CHANNEL_SETTINGS_Y = 0b11010000;
-    constexpr static uint8_t SAMPLE_INTERVAL = 5;
 
 #if (ILI9341_ROTATION == ILI9341_ROTATION_0 \
      || ILI9341_ROTATION == ILI9341_ROTATION_180)
@@ -77,7 +76,7 @@ namespace XPT2046 {
         return tp.state == TouchScreenState::TOUCHED;
     }
 
-    constexpr Point get_touch_point (TouchPanel &tp) {
+   Point get_touch_point (TouchPanel &tp) {
         return tp.ts.average ();
     }
 

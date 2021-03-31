@@ -13,9 +13,12 @@
 #include <GFX_color.h>
 #include <array>
 
-#define MAX_SAMPLES 10
 
 namespace XPT2046 {
+
+constexpr static uint8_t SAMPLE_INTERVAL = 5;
+constexpr static uint8_t MAX_SAMPLES = 5;
+
     struct Point {
         uint16_t x;
         uint16_t y;
@@ -73,7 +76,7 @@ namespace XPT2046 {
     void init (TouchPanel &tp, SPI_HandleTypeDef &hspi, IRQn_Type hirq);
     void run (TouchPanel &tp);
     bool is_touched (TouchPanel &tp);
-    constexpr Point get_touch_point (TouchPanel &tp);
+    Point get_touch_point (TouchPanel &tp);
     void IRQ_handler (TouchPanel &tp);
     void calibrate (TouchPanel &tp, GFX_Color::GFX &gfx);
 }
