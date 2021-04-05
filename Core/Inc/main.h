@@ -54,17 +54,17 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void main2(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
 #define BLUE_LED_Pin GPIO_PIN_13
 #define BLUE_LED_GPIO_Port GPIOC
-#define LCD_DC_Pin GPIO_PIN_1
-#define LCD_DC_GPIO_Port GPIOA
 #define TOUCH_IRQ_Pin GPIO_PIN_2
 #define TOUCH_IRQ_GPIO_Port GPIOA
 #define TOUCH_IRQ_EXTI_IRQn EXTI2_IRQn
+#define BACKLIGHT_PWM_Pin GPIO_PIN_3
+#define BACKLIGHT_PWM_GPIO_Port GPIOA
 #define TOUCH_CS_Pin GPIO_PIN_4
 #define TOUCH_CS_GPIO_Port GPIOA
 #define TOUCH_CLK_Pin GPIO_PIN_5
@@ -75,17 +75,16 @@ void Error_Handler(void);
 #define TOUCH_MOSI_GPIO_Port GPIOA
 #define LCD_CLK_Pin GPIO_PIN_0
 #define LCD_CLK_GPIO_Port GPIOB
-#define ZERO_CROSS_DETECT_Pin GPIO_PIN_1
-#define ZERO_CROSS_DETECT_GPIO_Port GPIOB
-#define ZERO_CROSS_DETECT_EXTI_IRQn EXTI1_IRQn
+#define LCD_DC_Pin GPIO_PIN_1
+#define LCD_DC_GPIO_Port GPIOB
 #define LCD_CS_Pin GPIO_PIN_2
 #define LCD_CS_GPIO_Port GPIOB
+#define LCD_MOSI_Pin GPIO_PIN_10
+#define LCD_MOSI_GPIO_Port GPIOA
 #define BMP_SCL_Pin GPIO_PIN_6
 #define BMP_SCL_GPIO_Port GPIOB
 #define BMP_SDA_Pin GPIO_PIN_7
 #define BMP_SDA_GPIO_Port GPIOB
-#define LCD_MOSI_Pin GPIO_PIN_8
-#define LCD_MOSI_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
