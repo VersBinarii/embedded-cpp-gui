@@ -85,7 +85,7 @@ static constexpr uint8_t initcmd[] = {
     }
 
     static void send_command_and_data (LCD &lcd, uint8_t command,
-                                       uint8_t *data, uint16_t length) {
+                                       uint8_t *data, uint32_t length) {
         // CS Low
 #if (ILI9341_USE_CS == 1)
         ILI9341_CS_LOW;
@@ -109,7 +109,7 @@ static constexpr uint8_t initcmd[] = {
     //
     // TFT Functions
     //
-    void set_rotation (LCD &lcd, uint8_t rotation) {
+    void LCD::set_rotation (uint8_t rotation) {
         if (rotation > 3)
             return;
 
@@ -132,14 +132,14 @@ static constexpr uint8_t initcmd[] = {
         }
 
         // Write indo MAD Control register our Rotation data
-        send_command_and_data (lcd, ILI9341_MADCTL, &rotation, 1);
+        send_command_and_data (*this, ILI9341_MADCTL, &rotation, 1);
     }
 
-    static void set_addr_window (LCD &lcd, uint16_t x1, uint16_t y1,
+     static void set_addr_window (LCD &lcd, uint16_t x1, uint16_t y1,
                                  uint16_t w, uint16_t h) {
         uint8_t to_send[4];
         // Calculate end ranges
-        uint16_t x2 = (x1 + w - 1), y2 = (y1 + h - 1);
+         uint16_t x2 = (x1 + w - 1), y2 = (y1 + h - 1);
 
         // Fulfill X's buffer
         to_send[0] = x1 >> 8;
@@ -158,39 +158,39 @@ static constexpr uint8_t initcmd[] = {
         send_command_and_data (lcd, ILI9341_PASET, to_send, 4);
     }
 
-    void write_pixel (LCD &lcd, int16_t x, int16_t y, Color color) {
+    void LCD::write_pixel (int16_t x, int16_t y, Color color) {
         uint8_t to_send[2];
 
         if ((x >= 0) && (x < TFTWIDTH) && (y >= 0) && (y < TFTHEIGHT)) {
             // Set Window for 1x1 pixel
-            set_addr_window (lcd, x, y, 1, 1);
+            set_addr_window (*this, x, y, 1, 1);
 
             // Fulfill buffer with color
             to_send[0] = color >> 8;
             to_send[1] = color & 0xFF;
             // Push color bytes to RAM
-            send_command_and_data (lcd, ILI9341_RAMWR, to_send, 2);
+            send_command_and_data (*this, ILI9341_RAMWR, to_send, 2);
         }
     }
 
-    void draw_image (LCD &lcd, uint32_t x, uint32_t y, const uint8_t *img,
-                     uint32_t w, uint32_t h) {
+    void LCD::draw_image (uint32_t x, uint32_t y, const uint8_t *img,
+                          uint32_t w, uint32_t h) {
         // Check if image will fit into screen - cannot make it outside by
         // hardware
         if (((x + w) <= TFTWIDTH) && ((y + h) <= TFTHEIGHT)) {
             // Set window for image
-            set_addr_window (lcd, x, y, w, h);
+            set_addr_window (*this, x, y, w, h);
             // Push image to RAM
-            send_command_and_data (lcd, ILI9341_RAMWR, (uint8_t *)img,
+            send_command_and_data (*this, ILI9341_RAMWR, (uint8_t *)img,
                                    (w * h * 2));
         }
     }
 
-    void clear_display (LCD &lcd, Color color) {
+    void LCD::clear_display (Color color) {
         // Set window for whole screen
-        set_addr_window (lcd, 0, 0, TFTWIDTH, TFTHEIGHT);
+        set_addr_window (*this, 0, 0, TFTWIDTH, TFTHEIGHT);
         // Set RAM writing
-        send_command (lcd, ILI9341_RAMWR);
+        send_command (*this, ILI9341_RAMWR);
 
         uint32_t length = TFTWIDTH * TFTHEIGHT;
 
@@ -201,40 +201,39 @@ static constexpr uint8_t initcmd[] = {
 
         while (length > 0U) {
             /* Wait until TXE flag is set to send data */
-            if (__HAL_SPI_GET_FLAG (lcd.spi, SPI_FLAG_TXE)) {
+            if (__HAL_SPI_GET_FLAG (this->spi, SPI_FLAG_TXE)) {
                 // Write higher byte of color to DR
-                *((__IO uint8_t *)&lcd.spi->Instance->DR) = (color >> 8);
+                *((__IO uint8_t *)&this->spi->Instance->DR) = (color >> 8);
                 // Wait for transfer
-                while (__HAL_SPI_GET_FLAG (lcd.spi, SPI_FLAG_TXE) != SET) {}
+                while (__HAL_SPI_GET_FLAG (this->spi, SPI_FLAG_TXE) != SET) {}
                 // Write lower byt of color to DR
-                *((__IO uint8_t *)&lcd.spi->Instance->DR) = (color & 0xFF);
+                *((__IO uint8_t *)&this->spi->Instance->DR) = (color & 0xFF);
                 // Decrease Lenght
                 length--;
             }
         }
 
         // Wait for the end of transfer
-        while (__HAL_SPI_GET_FLAG (lcd.spi, SPI_FLAG_BSY) != RESET) {}
+        while (__HAL_SPI_GET_FLAG (this->spi, SPI_FLAG_BSY) != RESET) {}
 
 #if (ILI9341_USE_CS == 1)
         ILI9341_CS_HIGH;
 #endif
     }
-    void init (LCD &lcd, SPI_HandleTypeDef *hspi) {
-        lcd.spi = hspi;
+    LCD::LCD (SPI_HandleTypeDef *hspi) : spi{ hspi } {
 
         uint8_t cmd, x, numArgs;
         const uint8_t *addr = initcmd;
-        __HAL_SPI_ENABLE (lcd.spi);
+        __HAL_SPI_ENABLE (this->spi);
 
-        send_command (lcd, ILI9341_SWRESET); // Engage software reset
+        send_command (*this, ILI9341_SWRESET); // Engage software reset
         delay (150);
 
         while ((cmd = *(addr++)) > 0) {
             x = *(addr++);
             numArgs = x & 0x7F;
             // Push Init data
-            send_command_and_data (lcd, cmd, (uint8_t *)addr, numArgs);
+            send_command_and_data (*this, cmd, (uint8_t *)addr, numArgs);
 
             addr += numArgs;
 
@@ -244,6 +243,6 @@ static constexpr uint8_t initcmd[] = {
         }
 
         // Set selected Rotation
-        set_rotation (lcd, ILI9341_ROTATION);
+        this->set_rotation (ILI9341_ROTATION);
     }
 }

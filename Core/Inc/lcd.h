@@ -37,9 +37,8 @@ namespace ILI9341 {
     constexpr uint16_t TFTWIDTH = 240;                          ///< ILI9341 max TFT width
     constexpr uint16_t TFTHEIGHT = 320; ///< ILI9341 max TFT height
 #elif (ILI9341_ROTATION == 1) || (ILI9341_ROTATION == 3)
-        constexpr uint16_t TFTWIDTH
-    = 320;                                ///< ILI9341 max TFT width
-    constexpr uint16_t = TFTHEIGHT = 240; ///< ILI9341 max TFT height
+    constexpr uint16_t TFTWIDTH = 320;                                ///< ILI9341 max TFT width
+    constexpr uint16_t TFTHEIGHT = 240; ///< ILI9341 max TFT height
 #endif
 
 #define ILI9341_NOP 0x00     ///< No-op register
@@ -125,13 +124,13 @@ namespace ILI9341 {
 
     struct LCD {
         SPI_HandleTypeDef *spi;
-    };
 
-    void init (LCD &lcd, SPI_HandleTypeDef *hspi);
-    void set_rotation (LCD &lcd, uint8_t rotation);
-    void write_pixel (LCD &lcd, int16_t x, int16_t y, Color color);
-    void clear_display (LCD &lcd, Color color);
-    void draw_image (LCD &lcd, uint32_t x, uint32_t y, const uint8_t *img,
-                     uint32_t w, uint32_t h);
+        LCD (SPI_HandleTypeDef *hspi);
+        void set_rotation (uint8_t rotation);
+        void write_pixel (int16_t x, int16_t y, Color color);
+        void clear_display (Color color);
+        void draw_image (uint32_t x, uint32_t y, const uint8_t *img,
+                         uint32_t w, uint32_t h);
+    };
 }
 #endif /* INC_TFT_ILI9341_H_ */
