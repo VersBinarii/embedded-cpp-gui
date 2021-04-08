@@ -248,7 +248,7 @@ namespace XPT2046 {
         Point new_a, new_b, new_c;
 
         // Prepare the screen for points
-        ILI9341::clear_display (*gfx.lcd, ILI9341::Color::BLACK);
+        gfx.lcd->clear_display (ILI9341::Color::BLACK);
 
         // Set correct state to fetch raw data from touch controller
         tp.mode = TouchScreenOperationMode::CALIBRATION;

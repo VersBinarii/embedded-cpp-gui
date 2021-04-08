@@ -19,7 +19,7 @@
 namespace GFX_Color {
 
     void draw_pixel (GFX &gfx, uint16_t x, uint16_t y, ILI9341::Color color) {
-        ILI9341::write_pixel (*gfx.lcd, x, y, color);
+        gfx.lcd->write_pixel (x, y, color);
     }
 
     void init (GFX &gfx, ILI9341::LCD &lcd) { gfx.lcd = &lcd; }
@@ -42,8 +42,7 @@ namespace GFX_Color {
     void draw_char (GFX &gfx, int x, int y, char chr, ILI9341::Color color) {
         if(chr > 0x7E) return; // chr > '~'
 
-        for (uint8_t i = 0; i < gfx.font[1]; i++) // Each column (Width)
-        {
+        for (uint8_t i = 0; i < gfx.font[1]; i++) { // Each column (Width)
             uint8_t line
                 = (uint8_t)gfx.font[(chr - 0x20) * gfx.font[1] + i
                                     + 2]; // Takie this line, (chr-0x20) = move
