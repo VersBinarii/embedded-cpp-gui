@@ -16,31 +16,17 @@ namespace ILI9341 {
 #define ILI9341_USE_HW_RESET 1
 #define ILI9341_USE_CS 1
 
-//
-// Pin operation
-//
-#if (ILI9341_USE_CS == 1)
-#define ILI9341_CS_LOW \
-    HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET)
-#define ILI9341_CS_HIGH \
-    HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET)
+#if (ILI9341_ROTATION == 0) || (ILI9341_ROTATION == 2)
+    constexpr uint16_t TFTWIDTH = 240;  // ILI9341 max TFT width
+    constexpr uint16_t TFTHEIGHT = 320; // ILI9341 max TFT height
+#elif (ILI9341_ROTATION == 1) || (ILI9341_ROTATION == 3)
+    constexpr uint16_t TFTWIDTH = 320;  // ILI9341 max TFT width
+    constexpr uint16_t TFTHEIGHT = 240; // ILI9341 max TFT height
 #endif
-#define ILI9341_DC_LOW HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_RESET)
-#define ILI9341_DC_HIGH HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET)
-
-#define ILI9341_SPI_TIMEOUT 1000
 
 //
 // Registers
 //
-#if (ILI9341_ROTATION == 0) || (ILI9341_ROTATION == 2)
-    constexpr uint16_t TFTWIDTH = 240;                          ///< ILI9341 max TFT width
-    constexpr uint16_t TFTHEIGHT = 320; ///< ILI9341 max TFT height
-#elif (ILI9341_ROTATION == 1) || (ILI9341_ROTATION == 3)
-    constexpr uint16_t TFTWIDTH = 320;                                ///< ILI9341 max TFT width
-    constexpr uint16_t TFTHEIGHT = 240; ///< ILI9341 max TFT height
-#endif
-
 #define ILI9341_NOP 0x00     ///< No-op register
 #define ILI9341_SWRESET 0x01 ///< Software reset register
 #define ILI9341_RDDID 0x04   ///< Read display identif ;ication information
@@ -74,11 +60,10 @@ namespace ILI9341 {
 #define ILI9341_VSCRSADD 0x37 ///< Vertical Scrolling Start Address
 #define ILI9341_PIXFMT 0x3A   ///< COLMOD: Pixel Format Set
 
-#define ILI9341_FRMCTR1 \
-    0xB1 ///< Frame Rate Control (In Normal Mode/Full Colors)
-#define ILI9341_FRMCTR2 0xB2 ///< Frame Rate Control (In Idle Mode/8 colors)
+#define ILI9341_FRMCTR1 0xB1 // Frame Rate Control (In Normal Mode/Full Colors)
+#define ILI9341_FRMCTR2 0xB2 // Frame Rate Control (In Idle Mode/8 colors)
 #define ILI9341_FRMCTR3 \
-    0xB3 ///< Frame Rate control (In Partial Mode/Full Colors)
+    0xB3 // Frame Rate control (In Partial Mode/Full Colors)
 #define ILI9341_INVCTR 0xB4  ///< Display Inversion Control
 #define ILI9341_DFUNCTR 0xB6 ///< Display Function Control
 
@@ -90,14 +75,8 @@ namespace ILI9341 {
 #define ILI9341_VMCTR1 0xC5 ///< VCOM Control 1
 #define ILI9341_VMCTR2 0xC7 ///< VCOM Control 2
 
-#define ILI9341_RDID1 0xDA ///< Read ID 1
-#define ILI9341_RDID2 0xDB ///< Read ID 2
-#define ILI9341_RDID3 0xDC ///< Read ID 3
-#define ILI9341_RDID4 0xDD ///< Read ID 4
-
 #define ILI9341_GMCTRP1 0xE0 ///< Positive Gamma Correction
 #define ILI9341_GMCTRN1 0xE1 ///< Negative Gamma Correction
-        //#define ILI9341_PWCTR6     0xFC
 
     // Color definitions
     enum Color {
@@ -123,14 +102,14 @@ namespace ILI9341 {
     };
 
     struct LCD {
-        SPI_HandleTypeDef *spi;
+        const SPI_HandleTypeDef *spi;
 
-        LCD (SPI_HandleTypeDef *hspi);
-        void set_rotation (uint8_t rotation);
-        void write_pixel (int16_t x, int16_t y, Color color);
-        void clear_display (Color color);
+        LCD (const SPI_HandleTypeDef *hspi);
+        void set_rotation (uint8_t rotation) const;
+        void write_pixel (int16_t x, int16_t y, Color color) const;
+        void clear_display (Color color) const;
         void draw_image (uint32_t x, uint32_t y, const uint8_t *img,
-                         uint32_t w, uint32_t h);
+                         uint32_t w, uint32_t h) const;
     };
 }
 #endif /* INC_TFT_ILI9341_H_ */

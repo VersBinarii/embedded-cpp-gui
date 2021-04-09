@@ -1,10 +1,11 @@
 #include "main.h"
 #include "lcd.h"
+#include <array>
 
 namespace ILI9341 {
 
 // clang-format off
-static constexpr uint8_t initcmd[] = {
+static const std::array<uint8_t, 111> initcmd{{
   0xEF, 3, 0x03, 0x80, 0x02,
   0xCF, 3, 0x00, 0xC1, 0x30,
   0xED, 4, 0x64, 0x03, 0x12, 0x81,
@@ -30,7 +31,7 @@ static constexpr uint8_t initcmd[] = {
   ILI9341_SLPOUT  , 0x80,                // Exit Sleep
   ILI9341_DISPON  , 0x80,                // Display on
   0x00                                   // End of list
-};
+}};
 // clang-format on
 
 //
@@ -49,7 +50,22 @@ static constexpr uint8_t initcmd[] = {
     //
     static void delay (uint32_t ms) { HAL_Delay (ms); }
 
-    static void send_to_tft (LCD &lcd, uint8_t *byte, uint32_t length) {
+    enum class CsPin { HIGH, LOW };
+
+#if (ILI9341_USE_CS == 1)
+    static void cs_set (CsPin s) {
+        HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin,
+                           s == CsPin::HIGH ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    }
+#endif
+
+    static void dc_set (CsPin s) {
+        HAL_GPIO_WritePin (LCD_DC_GPIO_Port, LCD_DC_Pin,
+                           s == CsPin::HIGH ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    }
+
+    static void send_to_tft (const LCD &lcd, const uint8_t *byte,
+                             uint32_t length) {
         // That is taken from HAL Transmit function
         while (length > 0U) {
             /* Wait until TXE flag is set to send data */
@@ -67,49 +83,49 @@ static constexpr uint8_t initcmd[] = {
         while (__HAL_SPI_GET_FLAG (lcd.spi, SPI_FLAG_BSY) != RESET) {}
     }
 
-    static void send_command (LCD &lcd, uint8_t command) {
+    static void send_command (const LCD &lcd, const uint8_t command) {
         // CS Low
 #if (ILI9341_USE_CS == 1)
-        ILI9341_CS_LOW;
+        cs_set (CsPin::LOW);
 #endif
         // DC to Command - DC to Low
-        ILI9341_DC_LOW;
+        dc_set (CsPin::LOW);
 
         // Send to TFT 1 byte
         send_to_tft (lcd, &command, 1);
 
         // CS High
 #if (ILI9341_USE_CS == 1)
-        ILI9341_CS_HIGH;
+        cs_set (CsPin::HIGH);
 #endif
     }
 
-    static void send_command_and_data (LCD &lcd, uint8_t command,
-                                       uint8_t *data, uint32_t length) {
+    static void send_command_and_data (const LCD &lcd, uint8_t command,
+                                       const uint8_t *data, uint32_t length) {
         // CS Low
 #if (ILI9341_USE_CS == 1)
-        ILI9341_CS_LOW;
+        cs_set (CsPin::LOW);
 #endif
         // DC to Command - DC to Low
-        ILI9341_DC_LOW;
+        dc_set (CsPin::LOW);
         // Send to TFT 1 byte
         send_to_tft (lcd, &command, 1);
 
         // DC to Data - DC to High
-        ILI9341_DC_HIGH;
+        dc_set (CsPin::HIGH);
         // Send to TFT Length byte
         send_to_tft (lcd, data, length);
 
         // CS High
 #if (ILI9341_USE_CS == 1)
-        ILI9341_CS_HIGH;
+        cs_set (CsPin::HIGH);
 #endif
     }
 
     //
     // TFT Functions
     //
-    void LCD::set_rotation (uint8_t rotation) {
+    void LCD::set_rotation (uint8_t rotation) const {
         if (rotation > 3)
             return;
 
@@ -135,7 +151,7 @@ static constexpr uint8_t initcmd[] = {
         send_command_and_data (*this, ILI9341_MADCTL, &rotation, 1);
     }
 
-     static void set_addr_window (LCD &lcd, uint16_t x1, uint16_t y1,
+    static void set_addr_window (const LCD &lcd, uint16_t x1, uint16_t y1,
                                  uint16_t w, uint16_t h) {
         uint8_t to_send[4];
         // Calculate end ranges
@@ -158,7 +174,7 @@ static constexpr uint8_t initcmd[] = {
         send_command_and_data (lcd, ILI9341_PASET, to_send, 4);
     }
 
-    void LCD::write_pixel (int16_t x, int16_t y, Color color) {
+    void LCD::write_pixel (int16_t x, int16_t y, Color color) const {
         uint8_t to_send[2];
 
         if ((x >= 0) && (x < TFTWIDTH) && (y >= 0) && (y < TFTHEIGHT)) {
@@ -174,19 +190,18 @@ static constexpr uint8_t initcmd[] = {
     }
 
     void LCD::draw_image (uint32_t x, uint32_t y, const uint8_t *img,
-                          uint32_t w, uint32_t h) {
+                          uint32_t w, uint32_t h) const {
         // Check if image will fit into screen - cannot make it outside by
         // hardware
         if (((x + w) <= TFTWIDTH) && ((y + h) <= TFTHEIGHT)) {
             // Set window for image
             set_addr_window (*this, x, y, w, h);
             // Push image to RAM
-            send_command_and_data (*this, ILI9341_RAMWR, (uint8_t *)img,
-                                   (w * h * 2));
+            send_command_and_data (*this, ILI9341_RAMWR, img, (w * h * 2));
         }
     }
 
-    void LCD::clear_display (Color color) {
+    void LCD::clear_display (Color color) const {
         // Set window for whole screen
         set_addr_window (*this, 0, 0, TFTWIDTH, TFTHEIGHT);
         // Set RAM writing
@@ -195,9 +210,10 @@ static constexpr uint8_t initcmd[] = {
         uint32_t length = TFTWIDTH * TFTHEIGHT;
 
 #if (ILI9341_USE_CS == 1)
-        ILI9341_CS_LOW;
+        cs_set (CsPin::LOW);
 #endif
-        ILI9341_DC_HIGH; // Data mode
+        // Data mode
+        dc_set (CsPin::HIGH);
 
         while (length > 0U) {
             /* Wait until TXE flag is set to send data */
@@ -217,31 +233,30 @@ static constexpr uint8_t initcmd[] = {
         while (__HAL_SPI_GET_FLAG (this->spi, SPI_FLAG_BSY) != RESET) {}
 
 #if (ILI9341_USE_CS == 1)
-        ILI9341_CS_HIGH;
+        cs_set (CsPin::HIGH);
 #endif
     }
-    LCD::LCD (SPI_HandleTypeDef *hspi) : spi{ hspi } {
+    LCD::LCD (const SPI_HandleTypeDef *hspi) : spi{ hspi } {
 
-        uint8_t cmd, x, numArgs;
-        const uint8_t *addr = initcmd;
+        uint8_t cmd;
+        uint8_t arr_pointer = 0; // initcmd;
         __HAL_SPI_ENABLE (this->spi);
 
         send_command (*this, ILI9341_SWRESET); // Engage software reset
         delay (150);
 
-        while ((cmd = *(addr++)) > 0) {
-            x = *(addr++);
-            numArgs = x & 0x7F;
+        while ((cmd = initcmd[arr_pointer++]) > 0) {
+            uint8_t x = initcmd[arr_pointer++];
+            uint8_t numArgs = x & 0x7F;
             // Push Init data
-            send_command_and_data (*this, cmd, (uint8_t *)addr, numArgs);
+            send_command_and_data (*this, cmd, &initcmd[arr_pointer], numArgs);
 
-            addr += numArgs;
+            arr_pointer += numArgs;
 
             if (x & 0x80) {
                 delay (150);
             }
         }
-
         // Set selected Rotation
         this->set_rotation (ILI9341_ROTATION);
     }
