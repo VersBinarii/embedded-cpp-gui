@@ -9,95 +9,56 @@
 #include <math.h>
 #endif
 
-#define _swap_int(a, b) \
-    {                   \
-        int t = a;      \
-        a = b;          \
-        b = t;          \
+namespace GFX_Color {
+    template <class T> static void swap (T &a, T &b) {
+        T tmp (std::move (a));
+        a = std::move (b);
+        b = std::move (tmp);
     }
 
-namespace GFX_Color {
+    GFX::GFX (const ILI9341::LCD &lcd, const Fonts::Font &f)
+        : lcd{ &lcd }, font{ &f } {}
 
-    void draw_pixel (GFX &gfx, uint16_t x, uint16_t y, ILI9341::Color color) {
+    void draw_pixel (const GFX &gfx, uint16_t x, uint16_t y,
+                     ILI9341::Color color) {
         gfx.lcd->write_pixel (x, y, color);
     }
-
-    void init (GFX &gfx, ILI9341::LCD &lcd) { gfx.lcd = &lcd; }
-
 #if  USING_STRINGS == 1
 
-    void set_font (GFX &gfx, const uint8_t *font_t) { gfx.font = font_t; }
-
-    void set_font_size (GFX &gfx, uint8_t size) {
-        if (size != 0)
-            gfx.font_size = size;
+    uint8_t GFX::get_font_height () {
+        return this->font->current_font.char_height;
     }
 
-    uint8_t get_font_height (GFX &gfx) { return gfx.font[0]; }
-
-    uint8_t get_font_width (GFX &gfx) { return gfx.font[1]; }
-
-    uint8_t get_font_size (GFX &gfx) { return gfx.font_size; }
-
-    void draw_char (GFX &gfx, int x, int y, char chr, ILI9341::Color color) {
-        if(chr > 0x7E) return; // chr > '~'
-
-        for (uint8_t i = 0; i < gfx.font[1]; i++) { // Each column (Width)
-            uint8_t line
-                = (uint8_t)gfx.font[(chr - 0x20) * gfx.font[1] + i
-                                    + 2]; // Takie this line, (chr-0x20) = move
-                                          // 20 chars back,
-
-            for (int8_t j = 0; j < gfx.font[0];
-                 j++, line >>= 1) // For each pixel in column
-            {
-                if (line & 1) // Check last pixel in line
-                {
-                    if (gfx.font_size == 1)
-                        draw_pixel (gfx, x + i, y + j,
-                                    color); // Draw this pixel
-                    else
-                        draw_fill_rectangle (gfx, x + i * gfx.font_size,
-                                             y + j * gfx.font_size,
-                                             gfx.font_size, gfx.font_size,
-                                             color); // Or bigger pixel
-            }
-            }
-        }
+    uint8_t GFX::draw_char (const char ch, uint16_t x, uint16_t y,
+                            ILI9341::Color fg_color, ILI9341::Color bg_color,
+                            Fonts::FontBackground fb) const {
+        return this->font->put_char (*this->lcd, ch, x, y, fg_color, bg_color,
+                                     fb);
     }
 
-    void draw_string (GFX &gfx, int x, int y, char *str,
-                      ILI9341::Color color) {
-        int x_tmp = x;
-
-	char znak;
-	znak = *str;
-
-	while(*str++)
-	{
-            draw_char (gfx, x_tmp, y, znak, color); // Draw current char
-
-            x_tmp += ((uint8_t)gfx.font[1] * gfx.font_size)
-                     + 1; // Move X drawing pointer do char width + 1 (space)
-
-            znak = *str; // Next char
-	}
+    uint8_t GFX::draw_string (const char *str, uint16_t x, uint16_t y,
+                              ILI9341::Color fg_color, ILI9341::Color bg_color,
+                              Fonts::FontBackground fb) const {
+        return this->font->put_string (*this->lcd, str, x, y, fg_color,
+                                       bg_color, fb);
     }
+
 #endif
 #if USING_LINES == 1
-    static void write_line (GFX &gfx, int x_start, int y_start, int x_end,
-                            int y_end, ILI9341::Color color) {
-        int16_t steep = abs(y_end - y_start) > abs(x_end - x_start);
+        static void write_line (const GFX &gfx, uint16_t x_start,
+                                uint16_t y_start, uint16_t x_end,
+                                uint16_t y_end, ILI9341::Color color) {
+        const int16_t steep = abs (y_end - y_start) > abs (x_end - x_start);
 
-	    if (steep) {
-	        _swap_int(x_start, y_start);
-	        _swap_int(x_end, y_end);
-	    }
+        if (steep) {
+            swap (x_start, y_start);
+            swap (x_end, y_end);
+            }
 
 	    if (x_start > x_end) {
-	        _swap_int(x_start, x_end);
-	        _swap_int(y_start, y_end);
-	    }
+                swap (x_start, x_end);
+                swap (y_start, y_end);
+            }
 
 	    int16_t dx, dy;
 	    dx = x_end - x_start;
@@ -126,63 +87,67 @@ namespace GFX_Color {
 	    }
     }
 
-    static void draw_fast_vline (GFX &gfx, int x_start, int y_start, int h,
+    static void draw_fast_vline (const GFX &gfx, uint16_t x_start,
+                                 uint16_t y_start, uint16_t h,
                                  ILI9341::Color color) {
         write_line (gfx, x_start, y_start, x_start, y_start + h - 1, color);
     }
 
-    static void draw_fast_hline (GFX &gfx, int x_start, int y_start, int w,
+    static void draw_fast_hline (const GFX &gfx, uint16_t x_start,
+                                 uint16_t y_start, uint16_t w,
                                  ILI9341::Color color) {
         write_line (gfx, x_start, y_start, x_start + w - 1, y_start, color);
     }
 
-    void draw_line (GFX &gfx, int x_start, int y_start, int x_end, int y_end,
-                    ILI9341::Color color) {
+    void GFX::draw_line (uint16_t x_start, uint16_t y_start, uint16_t x_end,
+                         uint16_t y_end, ILI9341::Color color) const {
         if(x_start == x_end){
-	        if(y_start > y_end) _swap_int(y_start, y_end);
-                draw_fast_vline (gfx, x_start, y_start, y_end - y_start + 1,
-                                 color);
+            if (y_start > y_end)
+                swap (y_start, y_end);
+            draw_fast_vline (*this, x_start, y_start, y_end - y_start + 1,
+                             color);
             } else if(y_start == y_end){
-	        if(x_start > x_end) _swap_int(x_start, x_end);
-                draw_fast_hline (gfx, x_start, y_start, x_end - x_start + 1,
+                if (x_start > x_end)
+                    swap (x_start, x_end);
+                draw_fast_hline (*this, x_start, y_start, x_end - x_start + 1,
                                  color);
             } else {
 
-                write_line (gfx, x_start, y_start, x_end, y_end, color);
+                write_line (*this, x_start, y_start, x_end, y_end, color);
             }
     }
 #endif
 #if USING_RECTANGLE == 1
-    void draw_rectangle (GFX &gfx, int x, int y, uint16_t w, uint16_t h,
-                         ILI9341::Color color) {
+    void GFX::draw_rectangle (uint16_t x, uint16_t y, uint16_t w, uint16_t h,
+                              ILI9341::Color color) const {
 
-        draw_fast_hline (gfx, x, y, w, color);
-        draw_fast_hline (gfx, x, y + h - 1, w, color);
-        draw_fast_vline (gfx, x, y, h, color);
-        draw_fast_vline (gfx, x + w - 1, y, h, color);
+        draw_fast_hline (*this, x, y, w, color);
+        draw_fast_hline (*this, x, y + h - 1, w, color);
+        draw_fast_vline (*this, x, y, h, color);
+        draw_fast_vline (*this, x + w - 1, y, h, color);
     }
 #endif
 #if USING_FILL_RECTANGLE == 1
-    void draw_fill_rectangle (GFX &gfx, int x, int y, uint16_t w, uint16_t h,
-                              ILI9341::Color color) {
+    void GFX::draw_fill_rectangle (uint16_t x, uint16_t y, uint16_t w,
+                                   uint16_t h, ILI9341::Color color) const {
         for (int i = x; i < x + w; i++) {
-            draw_fast_vline (gfx, i, y, h, color);
+            draw_fast_vline (*this, i, y, h, color);
         }
     }
 #endif
 #if USING_CIRCLE == 1
-    void draw_circle (GFX &gfx, int x0, int y0, uint16_t r,
-                      ILI9341::Color color) {
+    void GFX::draw_circle (uint16_t x0, uint16_t y0, uint16_t r,
+                           ILI9341::Color color) const {
         int16_t f = 1 - r;
         int16_t ddF_x = 1;
         int16_t ddF_y = -2 * r;
         int16_t x = 0;
         int16_t y = r;
 
-        draw_pixel (gfx, x0, y0 + r, color);
-        draw_pixel (gfx, x0, y0 - r, color);
-        draw_pixel (gfx, x0 + r, y0, color);
-        draw_pixel (gfx, x0 - r, y0, color);
+        draw_pixel (*this, x0, y0 + r, color);
+        draw_pixel (*this, x0, y0 - r, color);
+        draw_pixel (*this, x0 + r, y0, color);
+        draw_pixel (*this, x0 - r, y0, color);
 
         while (x < y) {
             if (f >= 0) {
@@ -194,20 +159,21 @@ namespace GFX_Color {
             ddF_x += 2;
             f += ddF_x;
 
-            draw_pixel (gfx, x0 + x, y0 + y, color);
-            draw_pixel (gfx, x0 - x, y0 + y, color);
-            draw_pixel (gfx, x0 + x, y0 - y, color);
-            draw_pixel (gfx, x0 - x, y0 - y, color);
-            draw_pixel (gfx, x0 + y, y0 + x, color);
-            draw_pixel (gfx, x0 - y, y0 + x, color);
-            draw_pixel (gfx, x0 + y, y0 - x, color);
-            draw_pixel (gfx, x0 - y, y0 - x, color);
+            draw_pixel (*this, x0 + x, y0 + y, color);
+            draw_pixel (*this, x0 - x, y0 + y, color);
+            draw_pixel (*this, x0 + x, y0 - y, color);
+            draw_pixel (*this, x0 - x, y0 - y, color);
+            draw_pixel (*this, x0 + y, y0 + x, color);
+            draw_pixel (*this, x0 - y, y0 + x, color);
+            draw_pixel (*this, x0 + y, y0 - x, color);
+            draw_pixel (*this, x0 - y, y0 - x, color);
         }
     }
 #endif
 #ifdef CIRCLE_HELPER
-    static void draw_circle_helper (GFX &gfx, int x0, int y0, uint16_t r,
-                                    uint8_t cornername, ILI9341::Color color) {
+    static void draw_circle_helper (const GFX &gfx, uint16_t x0, uint16_t y0,
+                                    uint16_t r, uint8_t cornername,
+                                    ILI9341::Color color) {
         int16_t f = 1 - r;
         int16_t ddF_x = 1;
         int16_t ddF_y = -2 * r;
@@ -243,7 +209,8 @@ namespace GFX_Color {
     }
 #endif
 #ifdef FILL_CIRCLE_HELPER
-    static void draw_fill_circle_helper (GFX &gfx, int x0, int y0, uint16_t r,
+    static void draw_fill_circle_helper (const GFX &gfx, uint16_t x0,
+                                         uint16_t y0, uint16_t r,
                                          uint8_t cornername, int16_t delta,
                                          ILI9341::Color color) {
 
@@ -279,67 +246,70 @@ namespace GFX_Color {
     }
 #endif
 #if USING_FILL_CIRCLE == 1
-    void draw_fill_circle (GFX &gfx, int x0, int y0, uint16_t r,
-                           ILI9341::Color color) {
+    void GFX::draw_fill_circle (uint16_t x0, uint16_t y0, uint16_t r,
+                                ILI9341::Color color) const {
 
-        draw_fast_vline (gfx, x0, y0 - r, 2 * r + 1, color);
-        draw_fill_circle_helper (gfx, x0, y0, r, 3, 0, color);
+        draw_fast_vline (*this, x0, y0 - r, 2 * r + 1, color);
+        draw_fill_circle_helper (*this, x0, y0, r, 3, 0, color);
     }
 #endif
 #if USING_ROUND_RECTANGLE == 1
-    void draw_round_rectangle (GFX &gfx, int x, int y, uint16_t w, uint16_t h,
-                               uint16_t r, ILI9341::Color color) {
-        draw_fast_hline (gfx, x + r, y, w - 2 * r, color);         // Top
-        draw_fast_hline (gfx, x + r, y + h - 1, w - 2 * r, color); // Bottom
-        draw_fast_vline (gfx, x, y + r, h - 2 * r, color);         // Left
-        draw_fast_vline (gfx, x + w - 1, y + r, h - 2 * r, color); // Right
+    void GFX::draw_round_rectangle (uint16_t x, uint16_t y, uint16_t w,
+                                    uint16_t h, uint16_t r,
+                                    ILI9341::Color color) const {
+        draw_fast_hline (*this, x + r, y, w - 2 * r, color);         // Top
+        draw_fast_hline (*this, x + r, y + h - 1, w - 2 * r, color); // Bottom
+        draw_fast_vline (*this, x, y + r, h - 2 * r, color);         // Left
+        draw_fast_vline (*this, x + w - 1, y + r, h - 2 * r, color); // Right
         // draw four corners
-        draw_circle_helper (gfx, x + r, y + r, r, 1, color);
-        draw_circle_helper (gfx, x + w - r - 1, y + r, r, 2, color);
-        draw_circle_helper (gfx, x + w - r - 1, y + h - r - 1, r, 4, color);
-        draw_circle_helper (gfx, x + r, y + h - r - 1, r, 8, color);
+        draw_circle_helper (*this, x + r, y + r, r, 1, color);
+        draw_circle_helper (*this, x + w - r - 1, y + r, r, 2, color);
+        draw_circle_helper (*this, x + w - r - 1, y + h - r - 1, r, 4, color);
+        draw_circle_helper (*this, x + r, y + h - r - 1, r, 8, color);
     }
 #endif
 #if USING_FILL_ROUND_RECTANGLE == 1
-    void draw_fill_round_rectangle (GFX &gfx, int x, int y, uint16_t w,
-                                    uint16_t h, uint16_t r,
-                                    ILI9341::Color color) {
+    void GFX::draw_fill_round_rectangle (uint16_t x, uint16_t y, uint16_t w,
+                                         uint16_t h, uint16_t r,
+                                         ILI9341::Color color) const {
         // smarter version
-        draw_fill_rectangle (gfx, x + r, y, w - 2 * r, h, color);
+        this->draw_fill_rectangle (x + r, y, w - 2 * r, h, color);
 
         // draw four corners
-        draw_fill_circle_helper (gfx, x + w - r - 1, y + r, r, 1,
+        draw_fill_circle_helper (*this, x + w - r - 1, y + r, r, 1,
                                  h - 2 * r - 1, color);
-        draw_fill_circle_helper (gfx, x + r, y + r, r, 2, h - 2 * r - 1,
+        draw_fill_circle_helper (*this, x + r, y + r, r, 2, h - 2 * r - 1,
                                  color);
     }
 #endif
 #if USING_TRIANGLE == 1
-    void draw_triangle (GFX &gfx, int x0, int y0, int x1, int y1, int x2,
-                        int y2, ILI9341::Color color) {
-        draw_line (gfx, x0, y0, x1, y1, color);
-        draw_line (gfx, x1, y1, x2, y2, color);
-        draw_line (gfx, x2, y2, x0, y0, color);
+    void GFX::draw_triangle (uint16_t x0, uint16_t y0, uint16_t x1,
+                             uint16_t y1, uint16_t x2, uint16_t y2,
+                             ILI9341::Color color) const {
+        this->draw_line (x0, y0, x1, y1, color);
+        this->draw_line (x1, y1, x2, y2, color);
+        this->draw_line (x2, y2, x0, y0, color);
     }
 #endif
 #if USING_FILL_TRIANGLE == 1
-    void draw_fill_triangle (GFX &gfx, int x0, int y0, int x1, int y1, int x2,
-                             int y2, ILI9341::Color color) {
+    void GFX::draw_fill_triangle (uint16_t x0, uint16_t y0, uint16_t x1,
+                                  uint16_t y1, uint16_t x2, uint16_t y2,
+                                  ILI9341::Color color) const {
 
         int16_t a, b, y, last;
 
         // Sort coordinates by Y order (y2 >= y1 >= y0)
         if (y0 > y1) {
-            _swap_int (y0, y1);
-            _swap_int (x0, x1);
+            swap (y0, y1);
+            swap (x0, x1);
         }
         if (y1 > y2) {
-            _swap_int (y2, y1);
-            _swap_int (x2, x1);
+            swap (y2, y1);
+            swap (x2, x1);
         }
         if (y0 > y1) {
-            _swap_int (y0, y1);
-            _swap_int (x0, x1);
+            swap (y0, y1);
+            swap (x0, x1);
         }
 
         if (y0
@@ -353,7 +323,7 @@ namespace GFX_Color {
                 a = x2;
             else if (x2 > b)
                 b = x2;
-            draw_fast_hline (gfx, a, y0, b - a + 1, color);
+            draw_fast_hline (*this, a, y0, b - a + 1, color);
             return;
         }
 
@@ -382,8 +352,8 @@ namespace GFX_Color {
             b = x0 + (x2 - x0) * (y - y0) / (y2 - y0);
             */
             if (a > b)
-                _swap_int (a, b);
-            draw_fast_hline (gfx, a, y, b - a + 1, color);
+                swap (a, b);
+            draw_fast_hline (*this, a, y, b - a + 1, color);
         }
 
         // For lower part of triangle, find scanline crossings for segments
@@ -400,20 +370,20 @@ namespace GFX_Color {
             b = x0 + (x2 - x0) * (y - y0) / (y2 - y0);
             */
             if (a > b)
-                _swap_int (a, b);
-            draw_fast_hline (gfx, a, y, b - a + 1, color);
+                swap (a, b);
+            draw_fast_hline (*this, a, y, b - a + 1, color);
         }
     }
 #endif
 #if USING_IMAGE == 1
-    void draw_image (GFX &gfx, int x, int y, const uint8_t *img, uint16_t w,
-                     uint16_t h) {
+    void GFX::draw_image (uint16_t x, uint16_t y, const uint8_t *img,
+                          uint16_t w, uint16_t h) const {
         uint8_t i, j;
         const uint8_t *ptr = img;
 
         for (j = 0; j < h; j++) {
             for (i = 0; i < w; i++) {
-                draw_pixel (gfx, x + i, y + j,
+                draw_pixel (*this, x + i, y + j,
                             static_cast<ILI9341::Color> (
                                 (*ptr << 8) | ((*(ptr + 1)) & 0xFF)));
                 ptr += sizeof (ILI9341::Color);
@@ -450,19 +420,20 @@ namespace GFX_Color {
         return 0; // will be never here
     }
 
-    void image_rotate (GFX &gfx, int x, int y, const uint8_t *img, uint8_t w,
-                       uint8_t h, ILI9341::Color color, uint16_t angle) {
+    void GFX::image_rotate (uint16_t x, uint16_t y, const uint8_t *img,
+                            uint8_t w, uint8_t h, ILI9341::Color color,
+                            uint16_t angle) const {
         angle %= 360;
 
-	uint8_t wHalf = w/2;
-	uint8_t hHalf = h/2;
+        const uint8_t wHalf = w / 2;
+        const uint8_t hHalf = h / 2;
 
-	uint8_t i, j, byteWidth = (w+7)/8;
+        uint8_t i, j, byteWidth = (w+7)/8;
 
-	double sinma = sinus(angle);
-	double cosma = sinus(angle + 90);
+        const double sinma = sinus (angle);
+        const double cosma = sinus (angle + 90);
 
-	for(j = 0; j < h; j++)
+        for(j = 0; j < h; j++)
 	{
 		for(i = 0; i < w; i++)
 		{
@@ -474,7 +445,7 @@ namespace GFX_Color {
 				int xs = (xt*cosma - yt*sinma) + wHalf;
 				int ys = (xt*sinma + yt*cosma) + hHalf;
 
-                                draw_pixel (xs + x, ys + y, color);
+                                draw_pixel (*this, xs + x, ys + y, color);
                         }
 		}
 	}
