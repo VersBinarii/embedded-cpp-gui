@@ -15,6 +15,7 @@
 
 
 namespace XPT2046 {
+
     constexpr static uint8_t MAX_SAMPLES = 5;
     constexpr static uint8_t TX_BUFF_LEN = 5;
 
@@ -45,10 +46,14 @@ namespace XPT2046 {
         double beta_y;
         double delta_y;
 
+        CalibrationData (CalibrationData &&) = default;
+        CalibrationData &operator= (CalibrationData &&cd);
+        constexpr CalibrationData ();
         constexpr CalibrationData (double ax, double bx, double dx, double ay,
                                    double by, double dy)
-            : alpha_x (ax), beta_x (bx), delta_x (dx), alpha_y (ay),
-              beta_y (by), delta_y (dy){};
+            : alpha_x (std::move (ax)), beta_x (std::move (bx)),
+              delta_x (std::move (dx)), alpha_y (std::move (ay)),
+              beta_y (std::move (by)), delta_y (std::move (dy)){};
     };
 
 

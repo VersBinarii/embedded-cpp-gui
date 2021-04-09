@@ -23,24 +23,41 @@ namespace XPT2046 {
                                                          { 300, 110 });
 #endif
 
+    /*
+     * Calibration data constructor
+     */
+    constexpr CalibrationData::CalibrationData ()
+        :
 #if (ILI9341_ROTATION == ILI9341_ROTATION_0)
-    constexpr static CalibrationData calib_data{ -0.0009337,  -0.0636839,
-                                                 250.342,     -0.0889775,
-                                                 -0.00118110, 356.538 };
+          alpha_x (-0.0009337), beta_x (-0.0636839), delta_x (250.342),
+          alpha_y (-0.0889775), beta_y (-0.00118110), delta_y (356.538)
 #elif (ILI9341_ROTATION == ILI9341_ROTATION_90)
-    constexpr static CalibrationData calib_data{ -0.0885542, 0.0016532,
-                                                 349.800,    0.0007309,
-                                                 0.06543699, -15.290 };
+          alpha_x (-0.0885542), beta_x (0.0016532), delta_x (349.800),
+          alpha_y (0.0007309), beta_y (0.06543699), delta_y (-15.290)
 #elif (ILI9341_ROTATION == ILI9341_ROTATION_180)
-    constexpr static CalibrationData calib_data{
-        0.0006100, 0.0647828, -13.634, 0.0890609, 0.0001381, -35.73
-    };
+          alpha_x (0.0006100), beta_x (0.0647828), delta_x (-13.634),
+          alpha_y (0.0890609), beta_y (0.0001381), delta_y (-35.73)
 #elif (ILI9341_ROTATION == ILI9341_ROTATION_270)
-    constexpr static CalibrationData calib_data{ 0.0902216,  0.0006510,
-                                                 -38.657,    -0.0010005,
-                                                 -0.0667030, 258.08 };
+          alpha_x (0.0902216), beta_x (0.0006510), delta_x (-38.657),
+          alpha_y (-0.0010005), beta_y (-0.0667030), delta_y (258.08)
 #endif
+    {
+    }
 
+    CalibrationData &CalibrationData::operator= (CalibrationData &&o) {
+        if (this != &o) {
+            alpha_x = std::move (o.alpha_x);
+            beta_x = std::move (o.beta_x);
+            delta_x = std::move (o.delta_x);
+            alpha_y = std::move (o.alpha_y);
+            beta_y = std::move (o.beta_y);
+            delta_y = std::move (o.delta_y);
+        }
+        return *this;
+    }
+    /*
+     * Touch sample
+     */
     constexpr Point TouchSamples::average () const {
         uint16_t x = 0, y = 0;
         for (uint8_t i = 0; i < samples.max_size (); i++) {
@@ -149,7 +166,7 @@ namespace XPT2046 {
         this->state = TouchScreenState::PRESAMPLING;
     }
 
-    TouchPanel::TouchPanel () : spi{ nullptr }, cd{ std::move (calib_data) } {}
+    TouchPanel::TouchPanel () : spi{ nullptr } {}
     void TouchPanel::init (const SPI_HandleTypeDef &hspi, IRQn_Type hirq) {
 
         this->spi = &hspi;
