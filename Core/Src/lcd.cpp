@@ -5,7 +5,7 @@
 namespace ILI9341 {
 
 // clang-format off
-static const std::array<uint8_t, 111> initcmd{{
+static constexpr std::array<uint8_t, 111> initcmd{{
   0xEF, 3, 0x03, 0x80, 0x02,
   0xCF, 3, 0x00, 0xC1, 0x30,
   0xED, 4, 0x64, 0x03, 0x12, 0x81,
@@ -50,19 +50,15 @@ static const std::array<uint8_t, 111> initcmd{{
     //
     static void delay (uint32_t ms) { HAL_Delay (ms); }
 
-    enum class CsPin { HIGH, LOW };
-
 #if (ILI9341_USE_CS == 1)
-    static void cs_set (CsPin s) {
-        HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin,
-                           s == CsPin::HIGH ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    }
+    auto cs_set = [] (GPIO_PinState s) {
+        HAL_GPIO_WritePin (LCD_CS_GPIO_Port, LCD_CS_Pin, s);
+    };
 #endif
 
-    static void dc_set (CsPin s) {
-        HAL_GPIO_WritePin (LCD_DC_GPIO_Port, LCD_DC_Pin,
-                           s == CsPin::HIGH ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    }
+    auto dc_set = [] (GPIO_PinState s) {
+        HAL_GPIO_WritePin (LCD_DC_GPIO_Port, LCD_DC_Pin, s);
+    };
 
     static void send_to_tft (const LCD &lcd, const uint8_t *byte,
                              uint32_t length) {
@@ -83,42 +79,27 @@ static const std::array<uint8_t, 111> initcmd{{
         while (__HAL_SPI_GET_FLAG (lcd.spi, SPI_FLAG_BSY) != RESET) {}
     }
 
-    static void send_command (const LCD &lcd, const uint8_t command) {
-        // CS Low
-#if (ILI9341_USE_CS == 1)
-        cs_set (CsPin::LOW);
-#endif
-        // DC to Command - DC to Low
-        dc_set (CsPin::LOW);
-
-        // Send to TFT 1 byte
-        send_to_tft (lcd, &command, 1);
-
-        // CS High
-#if (ILI9341_USE_CS == 1)
-        cs_set (CsPin::HIGH);
-#endif
-    }
-
     static void send_command_and_data (const LCD &lcd, uint8_t command,
                                        const uint8_t *data, uint32_t length) {
         // CS Low
 #if (ILI9341_USE_CS == 1)
-        cs_set (CsPin::LOW);
+        cs_set (GPIO_PIN_RESET);
 #endif
         // DC to Command - DC to Low
-        dc_set (CsPin::LOW);
+        dc_set (GPIO_PIN_RESET);
         // Send to TFT 1 byte
         send_to_tft (lcd, &command, 1);
 
-        // DC to Data - DC to High
-        dc_set (CsPin::HIGH);
-        // Send to TFT Length byte
-        send_to_tft (lcd, data, length);
+        if (length > 0) {
+            // DC to Data - DC to High
+            dc_set (GPIO_PIN_SET);
+            // Send to TFT Length byte
+            send_to_tft (lcd, data, length);
+        }
 
         // CS High
 #if (ILI9341_USE_CS == 1)
-        cs_set (CsPin::HIGH);
+        cs_set (GPIO_PIN_SET);
 #endif
     }
 
@@ -153,7 +134,7 @@ static const std::array<uint8_t, 111> initcmd{{
 
     static void set_addr_window (const LCD &lcd, uint16_t x1, uint16_t y1,
                                  uint16_t w, uint16_t h) {
-        uint8_t to_send[4];
+        std::array<uint8_t, 4> to_send;
         // Calculate end ranges
          uint16_t x2 = (x1 + w - 1), y2 = (y1 + h - 1);
 
@@ -163,7 +144,7 @@ static const std::array<uint8_t, 111> initcmd{{
         to_send[2] = x2 >> 8;
         to_send[3] = x2 & 0xFF;
         // Push X's buffer
-        send_command_and_data (lcd, ILI9341_CASET, to_send, 4);
+        send_command_and_data (lcd, ILI9341_CASET, to_send.data (), 4);
 
         // Fulfill Y's buffer
         to_send[0] = y1 >> 8;
@@ -171,7 +152,7 @@ static const std::array<uint8_t, 111> initcmd{{
         to_send[2] = y2 >> 8;
         to_send[3] = y2 & 0xFF;
         // Push Y's buffer
-        send_command_and_data (lcd, ILI9341_PASET, to_send, 4);
+        send_command_and_data (lcd, ILI9341_PASET, to_send.data (), 4);
     }
 
     void LCD::write_pixel (int16_t x, int16_t y, Color color) const {
@@ -205,15 +186,15 @@ static const std::array<uint8_t, 111> initcmd{{
         // Set window for whole screen
         set_addr_window (*this, 0, 0, TFTWIDTH, TFTHEIGHT);
         // Set RAM writing
-        send_command (*this, ILI9341_RAMWR);
+        send_command_and_data (*this, ILI9341_RAMWR, nullptr, 0);
 
         uint32_t length = TFTWIDTH * TFTHEIGHT;
 
 #if (ILI9341_USE_CS == 1)
-        cs_set (CsPin::LOW);
+        cs_set (GPIO_PIN_RESET);
 #endif
         // Data mode
-        dc_set (CsPin::HIGH);
+        dc_set (GPIO_PIN_SET);
 
         while (length > 0U) {
             /* Wait until TXE flag is set to send data */
@@ -233,7 +214,7 @@ static const std::array<uint8_t, 111> initcmd{{
         while (__HAL_SPI_GET_FLAG (this->spi, SPI_FLAG_BSY) != RESET) {}
 
 #if (ILI9341_USE_CS == 1)
-        cs_set (CsPin::HIGH);
+        cs_set (GPIO_PIN_SET);
 #endif
     }
     LCD::LCD (const SPI_HandleTypeDef *hspi) : spi{ hspi } {
@@ -242,7 +223,8 @@ static const std::array<uint8_t, 111> initcmd{{
         uint8_t arr_pointer = 0; // initcmd;
         __HAL_SPI_ENABLE (this->spi);
 
-        send_command (*this, ILI9341_SWRESET); // Engage software reset
+        send_command_and_data (*this, ILI9341_SWRESET, nullptr,
+                               0); // Engage software reset
         delay (150);
 
         while ((cmd = initcmd[arr_pointer++]) > 0) {
