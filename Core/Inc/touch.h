@@ -8,63 +8,85 @@
 #ifndef INC_TOUCH_H_
 #define INC_TOUCH_H_
 
+#include <graphics/GFX_color.h>
+#include <graphics/point.h>
 #include <main.h>
 #include <lcd.h>
-#include <GFX_color.h>
 #include <array>
 
 
 namespace XPT2046 {
 
-    constexpr static uint8_t MAX_SAMPLES = 5;
+    constexpr static uint8_t MAX_SAMPLES = 32;
     constexpr static uint8_t TX_BUFF_LEN = 5;
 
-    struct Point {
-        uint16_t x;
-        uint16_t y;
-        constexpr Point () : x (0), y (0) {}
-        constexpr Point (uint16_t x, uint16_t y) : x (x), y (y) {}
-    };
+    template <typename T, size_t N> struct CalibrationPoint {
+        std::array<T, N> a;
+        std::array<T, N> b;
+        std::array<T, N> c;
 
-    struct CalibrationPoint {
-        std::array<uint16_t, 2> a;
-        std::array<uint16_t, 2> b;
-        std::array<uint16_t, 2> c;
-
-        constexpr CalibrationPoint (std::array<uint16_t, 2> a,
-                                    std::array<uint16_t, 2> b,
-                                    std::array<uint16_t, 2> c)
+        constexpr CalibrationPoint (std::array<T, N> a, std::array<T, N> b,
+                                    std::array<T, N> c)
             : a (std::move (a)), b (std::move (b)), c (std::move (c)) {}
-        constexpr CalibrationPoint () : a{ 0, 0 }, b{ 0, 0 }, c{ 0, 0 } {}
+        /*
+         * Create a default set of calibration  points
+         */
+        constexpr CalibrationPoint ()
+            :
+#if (ILI9341_ROTATION == ILI9341_ROTATION_0 \
+     || ILI9341_ROTATION == ILI9341_ROTATION_180)
+              a ({ 10, 10 }), b ({ 80, 280 }), c ({ 200, 170 })
+#elif (ILI9341_ROTATION == ILI9341_ROTATION_90 \
+       || ILI9341_ROTATION == ILI9341_ROTATION_270)
+              a ({ 20, 25 }), b ({ 160, 220 }), c ({ 300, 110 })
+#endif
+        {
+        }
+        constexpr int32_t delta () const {
+            return (a[0] - c[0]) * (b[1] - c[1])
+                   - (b[0] - c[0]) * (a[1] - c[1]);
+        }
     };
 
-    struct CalibrationData {
-        double alpha_x;
-        double beta_x;
-        double delta_x;
-        double alpha_y;
-        double beta_y;
-        double delta_y;
+    template <typename T> struct CalibrationData {
+        T alpha_x;
+        T beta_x;
+        T delta_x;
+        T alpha_y;
+        T beta_y;
+        T delta_y;
 
-        CalibrationData (CalibrationData &&) = default;
-        CalibrationData &operator= (CalibrationData &&cd);
-        constexpr CalibrationData ();
-        constexpr CalibrationData (double ax, double bx, double dx, double ay,
-                                   double by, double dy)
+        constexpr CalibrationData (T ax, T bx, T dx, T ay, T by, T dy)
             : alpha_x (std::move (ax)), beta_x (std::move (bx)),
               delta_x (std::move (dx)), alpha_y (std::move (ay)),
               beta_y (std::move (by)), delta_y (std::move (dy)){};
+        constexpr CalibrationData ()
+            :
+#if (ILI9341_ROTATION == ILI9341_ROTATION_0)
+              alpha_x (-0.0009337), beta_x (-0.0636839), delta_x (250.342),
+              alpha_y (-0.0889775), beta_y (-0.00118110), delta_y (356.538)
+#elif (ILI9341_ROTATION == ILI9341_ROTATION_90)
+              alpha_x (-0.0885542), beta_x (0.0016532), delta_x (349.800),
+              alpha_y (0.0007309), beta_y (0.06543699), delta_y (-15.290)
+#elif (ILI9341_ROTATION == ILI9341_ROTATION_180)
+              alpha_x (0.0006100), beta_x (0.0647828), delta_x (-13.634),
+              alpha_y (0.0890609), beta_y (0.0001381), delta_y (-35.73)
+#elif (ILI9341_ROTATION == ILI9341_ROTATION_270)
+              alpha_x (0.0902216), beta_x (0.0006510), delta_x (-38.657),
+              alpha_y (-0.0010005), beta_y (-0.0667030), delta_y (258.08)
+#endif
+        {
+        }
     };
-
 
     struct TouchSamples {
         uint32_t sample_timer;
-        std::array<Point, MAX_SAMPLES> samples;
+        std::array<Point<uint16_t>, MAX_SAMPLES> samples;
         uint8_t counter;
 
         // Functions
         constexpr TouchSamples () : sample_timer (0), counter (0) {}
-        constexpr Point average () const;
+        constexpr Point<uint16_t> average () const;
     };
 
     class TouchPanel {
@@ -85,15 +107,15 @@ namespace XPT2046 {
         // Always starts in IDLE step
         volatile TouchScreenState state{ TouchScreenState::IDLE };
         // Init to default
-        TouchSamples ts{};
+        TouchSamples ts;
 
-        const Point read_xy ();
+        const Point<uint16_t> read_xy ();
         void get_raw_data ();
-        Point read_touch_point ();
+        Point<uint16_t> read_touch_point ();
 
       public:
-        CalibrationPoint cp_raw;
-        CalibrationData cd;
+        CalibrationPoint<uint16_t, 2> cp;
+        CalibrationData<double> cd;
         // We start NORMAL operation by default
         TouchScreenOperationMode mode{ TouchScreenOperationMode::NORMAL };
 
@@ -102,10 +124,10 @@ namespace XPT2046 {
         void IRQ_handler ();
         void run ();
         void calibrate (const GFX_Color::GFX &gfx);
-        Point get_touch_point () const;
-        bool is_touched ();
+        Point<uint16_t> get_touch_point () const;
+        bool is_touched () const;
+        void clear_touch();
     };
-
 }
 
 #endif /* INC_TOUCH_H_ */

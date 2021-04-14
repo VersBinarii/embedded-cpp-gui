@@ -5,60 +5,16 @@
  *      Author: kris
  */
 #include <touch.h>
+#include <graphics/point.h>
 
 namespace XPT2046 {
-    constexpr static uint8_t SAMPLE_INTERVAL = 5;
     constexpr static uint8_t CHANNEL_SETTINGS_X = 0b10010000;
     constexpr static uint8_t CHANNEL_SETTINGS_Y = 0b11010000;
 
-#if (ILI9341_ROTATION == ILI9341_ROTATION_0 \
-     || ILI9341_ROTATION == ILI9341_ROTATION_180)
-    constexpr static CalibrationPoint calibration_point ({ 10, 10 },
-                                                         { 80, 280 },
-                                                         { 200, 170 });
-#elif (ILI9341_ROTATION == ILI9341_ROTATION_90 \
-       || ILI9341_ROTATION == ILI9341_ROTATION_270)
-    constexpr static CalibrationPoint calibration_point ({ 20, 25 },
-                                                         { 160, 220 },
-                                                         { 300, 110 });
-#endif
-
-    /*
-     * Calibration data constructor
-     */
-    constexpr CalibrationData::CalibrationData ()
-        :
-#if (ILI9341_ROTATION == ILI9341_ROTATION_0)
-          alpha_x (-0.0009337), beta_x (-0.0636839), delta_x (250.342),
-          alpha_y (-0.0889775), beta_y (-0.00118110), delta_y (356.538)
-#elif (ILI9341_ROTATION == ILI9341_ROTATION_90)
-          alpha_x (-0.0885542), beta_x (0.0016532), delta_x (349.800),
-          alpha_y (0.0007309), beta_y (0.06543699), delta_y (-15.290)
-#elif (ILI9341_ROTATION == ILI9341_ROTATION_180)
-          alpha_x (0.0006100), beta_x (0.0647828), delta_x (-13.634),
-          alpha_y (0.0890609), beta_y (0.0001381), delta_y (-35.73)
-#elif (ILI9341_ROTATION == ILI9341_ROTATION_270)
-          alpha_x (0.0902216), beta_x (0.0006510), delta_x (-38.657),
-          alpha_y (-0.0010005), beta_y (-0.0667030), delta_y (258.08)
-#endif
-    {
-    }
-
-    CalibrationData &CalibrationData::operator= (CalibrationData &&o) {
-        if (this != &o) {
-            alpha_x = std::move (o.alpha_x);
-            beta_x = std::move (o.beta_x);
-            delta_x = std::move (o.delta_x);
-            alpha_y = std::move (o.alpha_y);
-            beta_y = std::move (o.beta_y);
-            delta_y = std::move (o.delta_y);
-        }
-        return *this;
-    }
     /*
      * Touch sample
      */
-    constexpr Point TouchSamples::average () const {
+    constexpr Point<uint16_t> TouchSamples::average () const {
         uint16_t x = 0, y = 0;
         for (uint8_t i = 0; i < samples.max_size (); i++) {
             x += this->samples[i].x;
@@ -66,7 +22,7 @@ namespace XPT2046 {
         }
         x = x / MAX_SAMPLES;
         y = y / MAX_SAMPLES;
-        return Point (x, y);
+        return Point<uint16_t> (x, y);
     }
 
     static void cs_set (GPIO_PinState state) {
@@ -80,7 +36,7 @@ namespace XPT2046 {
         cs_set (GPIO_PIN_SET);
     }
 
-    const Point TouchPanel::read_xy () {
+    const Point<uint16_t> TouchPanel::read_xy () {
         this->get_raw_data ();
         const uint16_t x = static_cast<uint16_t> ((this->rx_buffer[1] << 8)
                                                   | this->rx_buffer[2]);
@@ -89,7 +45,7 @@ namespace XPT2046 {
         return Point{ x, y };
     }
 
-    Point TouchPanel::read_touch_point () {
+    Point<uint16_t> TouchPanel::read_touch_point () {
         const Point raw_point = this->read_xy ();
         uint16_t x, y;
         if (this->mode == TouchScreenOperationMode::NORMAL) {
@@ -108,11 +64,20 @@ namespace XPT2046 {
         return Point (x, y);
     }
 
-    bool TouchPanel::is_touched () {
+    bool TouchPanel::is_touched () const {
         return this->state == TouchScreenState::TOUCHED;
     }
 
-    Point TouchPanel::get_touch_point () const { return this->ts.average (); }
+    /*
+     * Sometimes the TOUCHED state needs to be cleared
+     */
+    void TouchPanel::clear_touch(){
+    	this->state = TouchScreenState::PRESAMPLING;
+    }
+
+    Point<uint16_t> TouchPanel::get_touch_point () const {
+        return this->ts.average ();
+    }
 
     void TouchPanel::run () {
         switch (this->state) {
@@ -120,7 +85,10 @@ namespace XPT2046 {
             break;
 
         case TouchScreenState::PRESAMPLING: {
-            if ((HAL_GetTick () - this->ts.sample_timer) > SAMPLE_INTERVAL) {
+        	if (GPIO_PIN_SET== HAL_GPIO_ReadPin (TOUCH_IRQ_GPIO_Port, TOUCH_IRQ_Pin)) {
+        	                    this->state = TouchScreenState::RELEASED;
+        	                }
+          //  if ((HAL_GetTick () - this->ts.sample_timer) > SAMPLE_INTERVAL) {
                 const Point point_sample = this->read_touch_point ();
                 this->ts.samples[this->ts.counter++] = point_sample;
                 if (this->ts.counter == MAX_SAMPLES) {
@@ -128,16 +96,12 @@ namespace XPT2046 {
                     this->state = TouchScreenState::TOUCHED;
                 }
 
-                if (GPIO_PIN_SET
-                    == HAL_GPIO_ReadPin (TOUCH_IRQ_GPIO_Port, TOUCH_IRQ_Pin)) {
-                    this->state = TouchScreenState::RELEASED;
-                }
-                this->ts.sample_timer = HAL_GetTick ();
-            }
+            //    this->ts.sample_timer = HAL_GetTick ();
+           // }
         } break;
 
-        case TouchScreenState::TOUCHED:
-            if ((HAL_GetTick () - this->ts.sample_timer) > SAMPLE_INTERVAL) {
+        case TouchScreenState::TOUCHED:{
+           // if ((HAL_GetTick () - this->ts.sample_timer) > SAMPLE_INTERVAL) {
                 const Point point_sample = this->read_touch_point ();
                 this->ts.samples[this->ts.counter++] = point_sample;
                 this->ts.counter %= MAX_SAMPLES;
@@ -146,9 +110,9 @@ namespace XPT2046 {
                     == HAL_GPIO_ReadPin (TOUCH_IRQ_GPIO_Port, TOUCH_IRQ_Pin)) {
                     this->state = TouchScreenState::RELEASED;
                 }
-                this->ts.sample_timer = HAL_GetTick ();
-            }
-            break;
+          //      this->ts.sample_timer = HAL_GetTick ();
+          //  }
+        } break;
         case TouchScreenState::RELEASED:
             this->state = TouchScreenState::IDLE;
             this->ts.counter = 0;
@@ -201,71 +165,63 @@ namespace XPT2046 {
     // calibration
     //
     static void calibration_calculate (TouchPanel &tp) {
-        const int32_t delta = (tp.cp_raw.a[0] - tp.cp_raw.c[0])
-                                  * (tp.cp_raw.b[1] - tp.cp_raw.c[1])
-                              - (tp.cp_raw.b[0] - tp.cp_raw.c[0])
-                                    * (tp.cp_raw.a[1] - tp.cp_raw.c[1]);
+
+        const CalibrationPoint<uint16_t, 2> cal_point;
+        const int32_t delta = tp.cp.delta ();
 
         const double alpha_x
-            = static_cast<float> (
-                  (calibration_point.a[0] - calibration_point.c[0])
-                      * (tp.cp_raw.b[1] - tp.cp_raw.c[1])
-                  - (calibration_point.b[0] - calibration_point.c[0])
-                        * (tp.cp_raw.a[1] - tp.cp_raw.c[1]))
+            = static_cast<float> ((cal_point.a[0] - cal_point.c[0])
+                                      * (tp.cp.b[1] - tp.cp.c[1])
+                                  - (cal_point.b[0] - cal_point.c[0])
+                                        * (tp.cp.a[1] - tp.cp.c[1]))
               / delta;
 
         const double beta_x
-            = static_cast<float> (
-                  (tp.cp_raw.a[0] - tp.cp_raw.c[0])
-                      * (calibration_point.b[0] - calibration_point.c[0])
-                  - (tp.cp_raw.b[0] - tp.cp_raw.c[0])
-                        * (calibration_point.a[0] - calibration_point.c[0]))
+            = static_cast<float> ((tp.cp.a[0] - tp.cp.c[0])
+                                      * (cal_point.b[0] - cal_point.c[0])
+                                  - (tp.cp.b[0] - tp.cp.c[0])
+                                        * (cal_point.a[0] - cal_point.c[0]))
               / delta;
 
-        const double delta_x = (static_cast<float> (calibration_point.a[0])
-                                    * (tp.cp_raw.b[0] * tp.cp_raw.c[1]
-                                       - tp.cp_raw.c[0] * tp.cp_raw.b[1])
-                                - static_cast<float> (calibration_point.b[0])
-                                      * (tp.cp_raw.a[0] * tp.cp_raw.c[1]
-                                         - tp.cp_raw.c[0] * tp.cp_raw.a[1])
-                                + static_cast<float> (calibration_point.c[0])
-                                      * (tp.cp_raw.a[0] * tp.cp_raw.b[1]
-                                         - tp.cp_raw.b[0] * tp.cp_raw.a[1]))
-                               / delta;
+        const double delta_x
+            = (static_cast<float> (cal_point.a[0])
+                   * (tp.cp.b[0] * tp.cp.c[1] - tp.cp.c[0] * tp.cp.b[1])
+               - static_cast<float> (cal_point.b[0])
+                     * (tp.cp.a[0] * tp.cp.c[1] - tp.cp.c[0] * tp.cp.a[1])
+               + static_cast<float> (cal_point.c[0])
+                     * (tp.cp.a[0] * tp.cp.b[1] - tp.cp.b[0] * tp.cp.a[1]))
+              / delta;
 
         const double alpha_y
-            = static_cast<float> (
-                  (calibration_point.a[1] - calibration_point.c[1])
-                      * (tp.cp_raw.b[1] - tp.cp_raw.c[1])
-                  - (calibration_point.b[1] - calibration_point.c[1])
-                        * (tp.cp_raw.a[1] - tp.cp_raw.c[1]))
+            = static_cast<float> ((cal_point.a[1] - cal_point.c[1])
+                                      * (tp.cp.b[1] - tp.cp.c[1])
+                                  - (cal_point.b[1] - cal_point.c[1])
+                                        * (tp.cp.a[1] - tp.cp.c[1]))
               / delta;
 
         const double beta_y
-            = static_cast<float> (
-                  (tp.cp_raw.a[0] - tp.cp_raw.c[0])
-                      * (calibration_point.b[1] - calibration_point.c[1])
-                  - (tp.cp_raw.b[0] - tp.cp_raw.c[0])
-                        * (calibration_point.a[1] - calibration_point.c[1]))
+            = static_cast<float> ((tp.cp.a[0] - tp.cp.c[0])
+                                      * (cal_point.b[1] - cal_point.c[1])
+                                  - (tp.cp.b[0] - tp.cp.c[0])
+                                        * (cal_point.a[1] - cal_point.c[1]))
               / delta;
 
-        const double delta_y = (static_cast<float> (calibration_point.a[1])
-                                    * (tp.cp_raw.b[0] * tp.cp_raw.c[1]
-                                       - tp.cp_raw.c[0] * tp.cp_raw.b[1])
-                                - static_cast<float> (calibration_point.b[1])
-                                      * (tp.cp_raw.a[0] * tp.cp_raw.c[1]
-                                         - tp.cp_raw.c[0] * tp.cp_raw.a[1])
-                                + static_cast<float> (calibration_point.c[1])
-                                      * (tp.cp_raw.a[0] * tp.cp_raw.b[1]
-                                         - tp.cp_raw.b[0] * tp.cp_raw.a[1]))
-                               / delta;
+        const double delta_y
+            = (static_cast<float> (cal_point.a[1])
+                   * (tp.cp.b[0] * tp.cp.c[1] - tp.cp.c[0] * tp.cp.b[1])
+               - static_cast<float> (cal_point.b[1])
+                     * (tp.cp.a[0] * tp.cp.c[1] - tp.cp.c[0] * tp.cp.a[1])
+               + static_cast<float> (cal_point.c[1])
+                     * (tp.cp.a[0] * tp.cp.b[1] - tp.cp.b[0] * tp.cp.a[1]))
+              / delta;
         tp.cd = CalibrationData (alpha_x, beta_x, delta_x, alpha_y, beta_y,
                                  delta_y);
     }
 
     void TouchPanel::calibrate (const GFX_Color::GFX &gfx) {
         auto calibration_count = 0;
-        Point new_a, new_b, new_c;
+        const CalibrationPoint<uint16_t, 2> cal_point;
+        Point<uint16_t> new_a, new_b, new_c;
 
         // Prepare the screen for points
         gfx.lcd->clear_display (ILI9341::Color::BLACK);
@@ -279,8 +235,7 @@ namespace XPT2046 {
             this->run ();
             switch (calibration_count) {
             case 0:
-                calibration_draw_point (gfx, calibration_point.a[0],
-                                        calibration_point.a[1]);
+                calibration_draw_point (gfx, cal_point.a[0], cal_point.a[1]);
                 if (this->state == TouchScreenState::TOUCHED) {
                     new_a = this->get_touch_point ();
                 }
@@ -291,8 +246,7 @@ namespace XPT2046 {
                 break;
 
             case 1:
-                calibration_draw_point (gfx, calibration_point.b[0],
-                                        calibration_point.b[1]);
+                calibration_draw_point (gfx, cal_point.b[0], cal_point.b[1]);
                 if (this->state == TouchScreenState::TOUCHED) {
                     new_b = this->get_touch_point ();
                 }
@@ -302,8 +256,7 @@ namespace XPT2046 {
                 }
                 break;
             case 2:
-                calibration_draw_point (gfx, calibration_point.c[0],
-                                        calibration_point.c[1]);
+                calibration_draw_point (gfx, cal_point.c[0], cal_point.c[1]);
                 if (this->state == TouchScreenState::TOUCHED) {
                     new_c = this->get_touch_point ();
                 }
@@ -315,10 +268,10 @@ namespace XPT2046 {
 
             case 3:
                 // Create new calibration point from the captured samples
-                CalibrationPoint new_calibration_point ({ new_a.x, new_a.y },
-                                                        { new_b.x, new_b.y },
-                                                        { new_c.x, new_c.y });
-                this->cp_raw = std::move (new_calibration_point);
+                CalibrationPoint<uint16_t, 2> new_calibration_point (
+                    { new_a.x, new_a.y }, { new_b.x, new_b.y },
+                    { new_c.x, new_c.y });
+                this->cp = std::move (new_calibration_point);
                 // and then re-caculate calibration
                 calibration_calculate (*this);
                 calibration_count++;
