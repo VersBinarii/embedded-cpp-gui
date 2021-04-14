@@ -1,8 +1,8 @@
 #ifndef ARIAL_BLACK_20_H
 #define ARIAL_BLACK_20_H
 
+#include <graphics/fonts.h>
 #include "main.h"
-#include <fonts.h>
 
 /* Character bitmaps for Arial Black 20pt */
 constexpr uint8_t arialBlack_20ptBitmaps[] = {
