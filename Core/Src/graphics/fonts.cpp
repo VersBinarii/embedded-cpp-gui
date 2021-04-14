@@ -1,4 +1,4 @@
-#include <fonts.h>
+#include <graphics/fonts.h>
 #include <string.h>
 
 namespace Fonts {

@@ -1,25 +1,28 @@
 #ifndef GFX_COLOR_H_
 #define GFX_COLOR_H_
 
+#include <graphics/fonts.h>
 #include <main.h>
 #include <lcd.h>
-#include <fonts.h>
 
 namespace GFX_Color {
 
+    constexpr static uint16_t SCREEN_WIDTH = ILI9341::TFTWIDTH;
+    constexpr static uint16_t SCREEN_HEIGHT = ILI9341::TFTHEIGHT;
+
 #define USING_STRINGS 1 // 0 - do not compile, 1 - compile
 
-#define USING_IMAGE 1
+#define USING_IMAGE 0
 #if USING_IMAGE == 1
 #define USING_IMAGE_ROTATE 0
 #endif
 
-// Trygonometric graphic functions
+// Trygonometric graphic functions:w
 #define USING_RECTANGLE 1
 #define USING_CIRCLE 0
 #define USING_FILL_CIRCLE 0
-#define USING_ROUND_RECTANGLE 0
-#define USING_FILL_ROUND_RECTANGLE 0
+#define USING_ROUND_RECTANGLE 1
+#define USING_FILL_ROUND_RECTANGLE 1
 #define USING_TRIANGLE 0
 #define USING_FILL_TRIANGLE 0
 #if ((USING_FILL_ROUND_RECTANGLE == 0) && (USING_STRINGS == 0))

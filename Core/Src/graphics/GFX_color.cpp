@@ -1,6 +1,9 @@
+#include <graphics/GFX_color.h>
 #include "main.h"
-#include "GFX_color.h"
 #include "lcd.h"
+#include <utility>
+
+using std::swap;
 
 #if USING_LINES == 1
 #include <stdlib.h> // for abs() function
@@ -10,12 +13,6 @@
 #endif
 
 namespace GFX_Color {
-    template <class T> static void swap (T &a, T &b) {
-        T tmp (std::move (a));
-        a = std::move (b);
-        b = std::move (tmp);
-    }
-
     GFX::GFX (const ILI9341::LCD &lcd, const Fonts::Font &f)
         : lcd{ &lcd }, font{ &f } {}
 
